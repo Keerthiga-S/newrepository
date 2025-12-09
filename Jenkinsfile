@@ -1,15 +1,21 @@
 pipeline {
   agent any
 
+  tools {
+    sonar 'MyScanner'
+  }
+
   triggers {
     pollSCM('H/5 * * * *')
   }
 
   environment {
     BUILD_ENV = "dev"
+    SONAR_AUTH_TOKEN = credentials('sonar-token')
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         checkout scm
@@ -32,6 +38,30 @@ pipeline {
       }
     }
 
+    stage('SonarQube Analysis') {
+      steps {
+        script {
+          withSonarQubeEnv('MySonar') {
+            sh """
+              sonar-scanner \
+                -Dsonar.projectKey=myproject \
+                -Dsonar.sources=. \
+                -Dsonar.host.url=http://10.10.121.240:9000 \
+                -Dsonar.login=$SONAR_AUTH_TOKEN
+            """
+          }
+        }
+      }
+    }
+
+    stage('Quality Gate') {
+      steps {
+        script {
+          waitForQualityGate abortPipeline: true
+        }
+      }
+    }
+
     stage('Archive') {
       steps {
         echo 'Archiving artifacts...'
@@ -39,6 +69,7 @@ pipeline {
         archiveArtifacts artifacts: 'build-output.txt', fingerprint: true
       }
     }
+
   }
 
   post {
