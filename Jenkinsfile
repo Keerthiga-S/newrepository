@@ -2,8 +2,7 @@ pipeline {
   agent any
 
   triggers {
-    // Uncomment if you prefer polling instead of GitHub webhooks:
-    // pollSCM('H/5 * * * *')
+    pollSCM('H/5 * * * *')
   }
 
   environment {
@@ -23,7 +22,6 @@ pipeline {
         sh '''
           echo "This is my first Jenkins build step"
           echo "Running build script..."
-          # Add real build commands here, e.g. mvn -B package or npm install
         '''
       }
     }
@@ -31,7 +29,6 @@ pipeline {
     stage('Test') {
       steps {
         echo 'Running tests (if any)...'
-        // sh 'make test' or other test commands
       }
     }
 
