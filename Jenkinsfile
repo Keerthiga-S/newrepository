@@ -1,10 +1,6 @@
 pipeline {
   agent any
 
-  tools {
-    sonar 'MyScanner'
-  }
-
   triggers {
     pollSCM('H/5 * * * *')
   }
@@ -43,7 +39,7 @@ pipeline {
         script {
           withSonarQubeEnv('MySonar') {
             sh """
-              sonar-scanner \
+              ${tool 'MyScanner'}/bin/sonar-scanner \
                 -Dsonar.projectKey=myproject \
                 -Dsonar.sources=. \
                 -Dsonar.host.url=http://10.10.121.240:9000 \
