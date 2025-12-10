@@ -1,4 +1,3 @@
-# app/main.py
 from fastapi import FastAPI
 
 app = FastAPI()
@@ -10,3 +9,4 @@ def read_root():
 @app.get("/add")
 def add(a: int = 0, b: int = 0):
     return {"result": a + b}
+
