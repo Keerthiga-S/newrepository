@@ -1,18 +1,19 @@
 pipeline {
-    agent any
+    agent {
+        docker { image 'python:3.11-slim' }  // Python pre-installed
+    }
 
     environment {
-        SONAR_AUTH_TOKEN = credentials('sonar-token') // Jenkins secret-text ID
-        SONAR_SERVER_NAME = 'MySonar'                // SonarQube server name configured in Jenkins
-        SONAR_SCANNER_TOOL = 'MyScanner'            // SonarScanner tool configured in Jenkins
+        SONAR_AUTH_TOKEN = credentials('sonar-token')  // Jenkins secret-text ID
+        SONAR_SERVER_NAME = 'MySonar'
+        SONAR_SCANNER_TOOL = 'MyScanner'
 
         SONAR_PROJECT_KEY = 'my-fastapi-project'
         SONAR_PROJECT_NAME = 'my-fastapi-project'
-        SONAR_HOST_URL = 'http://Keerthiga:9000'    // Your SonarQube URL
+        SONAR_HOST_URL = 'http://sonarqube:9000'  // Use container name for Docker networking
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
@@ -22,7 +23,7 @@ pipeline {
         stage('Setup Python') {
             steps {
                 sh '''
-                    python3 -m venv venv
+                    python -m venv venv
                     . venv/bin/activate
                     pip install --upgrade pip
                     pip install -r requirements.txt
@@ -42,7 +43,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv("${SONAR_SERVER_NAME}") {
-                    sh '''
+                    sh """
                         ${tool SONAR_SCANNER_TOOL}/bin/sonar-scanner \
                             -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                             -Dsonar.projectName=${SONAR_PROJECT_NAME} \
@@ -50,7 +51,7 @@ pipeline {
                             -Dsonar.host.url=${SONAR_HOST_URL} \
                             -Dsonar.login=${SONAR_AUTH_TOKEN} \
                             -Dsonar.python.coverage.reportPaths=coverage.xml
-                    '''
+                    """
                 }
             }
         }
@@ -70,10 +71,10 @@ pipeline {
             junit testResults: 'pytest-results.xml', allowEmptyResults: true
         }
         success {
-            echo "Build succeeded ✅"
+            echo "Build succeeded"
         }
         failure {
-            echo "Build failed ❌"
+            echo "Build failed"
         }
     }
 }
