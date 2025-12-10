@@ -20,70 +20,36 @@ pipeline {
 
         stage('Setup Python') {
             steps {
-                script {
-                    if (isUnix()) {
-                        sh '''
-                            python3 -m venv venv
-                            . venv/bin/activate
-                            pip install --upgrade pip
-                            pip install -r requirements.txt
-                        '''
-                    } else {
-                        bat '''
-                            python -m venv venv
-                            call venv\\Scripts\\activate
-                            python -m pip install --upgrade pip
-                            pip install -r requirements.txt
-                        '''
-                    }
-                }
+                bat '''
+                    python -m venv venv
+                    call venv\\Scripts\\activate
+                    python -m pip install --upgrade pip
+                    pip install -r requirements.txt
+                '''
             }
         }
 
         stage('Run Tests') {
             steps {
-                script {
-                    if (isUnix()) {
-                        sh '''
-                            . venv/bin/activate
-                            pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || true
-                        '''
-                    } else {
-                        bat '''
-                            call venv\\Scripts\\activate
-                            pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || exit /b 0
-                        '''
-                    }
-                }
+                bat '''
+                    call venv\\Scripts\\activate
+                    pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || exit /b 0
+                '''
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                script {
-                    withSonarQubeEnv("${SONAR_SERVER_NAME}") {
-                        if (isUnix()) {
-                            sh """
-                                ${tool SONAR_SCANNER_TOOL}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                    -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                                    -Dsonar.sources=app \
-                                    -Dsonar.host.url=${SONAR_HOST_URL} \
-                                    -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                                    -Dsonar.python.coverage.reportPaths=coverage.xml
-                            """
-                        } else {
-                            bat """
-                                "%SONAR_SCANNER_HOME%\\bin\\sonar-scanner.bat" ^ 
-                                    -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^ 
-                                    -Dsonar.projectName=%SONAR_PROJECT_NAME% ^ 
-                                    -Dsonar.sources=app ^ 
-                                    -Dsonar.host.url=%SONAR_HOST_URL% ^ 
-                                    -Dsonar.login=%SONAR_AUTH_TOKEN% ^ 
-                                    -Dsonar.python.coverage.reportPaths=coverage.xml
-                            """
-                        }
-                    }
+                withSonarQubeEnv("${SONAR_SERVER_NAME}") {
+                    bat """
+                        "%SONAR_SCANNER_HOME%\\bin\\sonar-scanner.bat" ^
+                            -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
+                            -Dsonar.projectName=%SONAR_PROJECT_NAME% ^
+                            -Dsonar.sources=app ^
+                            -Dsonar.host.url=%SONAR_HOST_URL% ^
+                            -Dsonar.login=%SONAR_AUTH_TOKEN% ^
+                            -Dsonar.python.coverage.reportPaths=coverage.xml
+                    """
                 }
             }
         }
