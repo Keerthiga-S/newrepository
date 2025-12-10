@@ -42,7 +42,7 @@ pipeline {
               ${tool 'MyScanner'}/bin/sonar-scanner \
                 -Dsonar.projectKey=my-fastapi-project \
                 -Dsonar.sources=. \
-                -Dsonar.host.url=http://sonarqube:9000 \
+                -Dsonar.host.url=http://sonarqube.example.com:9000 \
                 -Dsonar.token=$SONAR_AUTH_TOKEN \
                 -Dsonar.python.coverage.reportPaths=coverage.xml
             """
