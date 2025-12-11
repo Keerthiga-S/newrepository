@@ -2,12 +2,10 @@ pipeline {
     agent any
 
     environment {
-        SONAR_SERVER_NAME = 'MySonar'
-        SONAR_SCANNER_TOOL = 'MyScanner'
-
+        SONAR_HOST_URL = 'http://localhost:9000'
         SONAR_PROJECT_KEY = 'my-fastapi-project'
         SONAR_PROJECT_NAME = 'my-fastapi-project'
-        SONAR_HOST_URL = 'http://localhost:9000'
+        SONAR_SCANNER_TOOL = 'MyScanner'
     }
 
     stages {
@@ -45,13 +43,11 @@ pipeline {
                     if (isUnix()) {
                         sh '''
                             . venv/bin/activate
-                            export PYTHONPATH=$PYTHONPATH:$PWD
                             pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || true
                         '''
                     } else {
                         bat '''
                             call venv\\Scripts\\activate
-                            set PYTHONPATH=%CD%
                             pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || exit /b 0
                         '''
                     }
@@ -61,29 +57,28 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                script {
-                    // Inject token securely
-                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
-                        withSonarQubeEnv("${SONAR_SERVER_NAME}") {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
+                    withSonarQubeEnv('MySonar') {
+                        script {
                             if (isUnix()) {
                                 sh """
-                                    ${tool SONAR_SCANNER_TOOL}/bin/sonar-scanner \
-                                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                        -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                                        -Dsonar.sources=app \
-                                        -Dsonar.host.url=${SONAR_HOST_URL} \
-                                        -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                                        -Dsonar.python.coverage.reportPaths=coverage.xml
+                                ${tool SONAR_SCANNER_TOOL}/bin/sonar-scanner \
+                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                    -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                                    -Dsonar.sources=app \
+                                    -Dsonar.host.url=${SONAR_HOST_URL} \
+                                    -Dsonar.login=${SONAR_AUTH_TOKEN} \
+                                    -Dsonar.python.coverage.reportPaths=coverage.xml
                                 """
                             } else {
                                 bat """
-                                    "%SONAR_SCANNER_HOME%\\bin\\sonar-scanner.bat" ^
-                                        -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
-                                        -Dsonar.projectName=%SONAR_PROJECT_NAME% ^
-                                        -Dsonar.sources=app ^
-                                        -Dsonar.host.url=%SONAR_HOST_URL% ^
-                                        -Dsonar.login=%SONAR_AUTH_TOKEN% ^
-                                        -Dsonar.python.coverage.reportPaths=coverage.xml
+                                "%SONAR_SCANNER_HOME%\\bin\\sonar-scanner.bat" ^
+                                    -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
+                                    -Dsonar.projectName=%SONAR_PROJECT_NAME% ^
+                                    -Dsonar.sources=app ^
+                                    -Dsonar.host.url=%SONAR_HOST_URL% ^
+                                    -Dsonar.login=%SONAR_AUTH_TOKEN% ^
+                                    -Dsonar.python.coverage.reportPaths=coverage.xml
                                 """
                             }
                         }
