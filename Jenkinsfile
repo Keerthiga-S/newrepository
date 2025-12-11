@@ -1,16 +1,14 @@
 pipeline {
-    agent {
-        docker { image 'python:3.11-slim' }  // Python pre-installed
-    }
+    agent any
 
     environment {
-        SONAR_AUTH_TOKEN = credentials('sonar-token')  // Jenkins secret-text ID
+        SONAR_AUTH_TOKEN = credentials('sonar-token') // Jenkins secret-text id
         SONAR_SERVER_NAME = 'MySonar'
         SONAR_SCANNER_TOOL = 'MyScanner'
 
         SONAR_PROJECT_KEY = 'my-fastapi-project'
         SONAR_PROJECT_NAME = 'my-fastapi-project'
-        SONAR_HOST_URL = 'http://sonarqube:9000'  // Use container name for Docker networking
+        SONAR_HOST_URL = 'http://localhost:9000'
     }
 
     stages {
@@ -22,36 +20,71 @@ pipeline {
 
         stage('Setup Python') {
             steps {
-                sh '''
-                    python -m venv venv
-                    . venv/bin/activate
-                    pip install --upgrade pip
-                    pip install -r requirements.txt
-                '''
+                script {
+                    // Activate virtual environment and install dependencies
+                    if (isUnix()) {
+                        sh '''
+                            python3 -m venv venv
+                            . venv/bin/activate
+                            pip install --upgrade pip
+                            pip install -r requirements.txt
+                        '''
+                    } else {
+                        bat '''
+                            python -m venv venv
+                            call venv\\Scripts\\activate
+                            python -m pip install --upgrade pip
+                            pip install -r requirements.txt
+                        '''
+                    }
+                }
             }
         }
 
         stage('Run Tests') {
             steps {
-                sh '''
-                    . venv/bin/activate
-                    pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || true
-                '''
+                script {
+                    if (isUnix()) {
+                        sh '''
+                            . venv/bin/activate
+                            pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || true
+                        '''
+                    } else {
+                        bat '''
+                            call venv\\Scripts\\activate
+                            pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || exit /b 0
+                        '''
+                    }
+                }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv("${SONAR_SERVER_NAME}") {
-                    sh """
-                        ${tool SONAR_SCANNER_TOOL}/bin/sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                            -Dsonar.sources=app \
-                            -Dsonar.host.url=${SONAR_HOST_URL} \
-                            -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                            -Dsonar.python.coverage.reportPaths=coverage.xml
-                    """
+                script {
+                    withSonarQubeEnv("${SONAR_SERVER_NAME}") {
+                        if (isUnix()) {
+                            sh """
+                                ${tool SONAR_SCANNER_TOOL}/bin/sonar-scanner \
+                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                    -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                                    -Dsonar.sources=app \
+                                    -Dsonar.host.url=${SONAR_HOST_URL} \
+                                    -Dsonar.login=${SONAR_AUTH_TOKEN} \
+                                    -Dsonar.python.coverage.reportPaths=coverage.xml
+                            """
+                        } else {
+                            bat """
+                                "%SONAR_SCANNER_HOME%\\bin\\sonar-scanner.bat" ^ 
+                                    -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^ 
+                                    -Dsonar.projectName=%SONAR_PROJECT_NAME% ^ 
+                                    -Dsonar.sources=app ^ 
+                                    -Dsonar.host.url=%SONAR_HOST_URL% ^ 
+                                    -Dsonar.login=%SONAR_AUTH_TOKEN% ^ 
+                                    -Dsonar.python.coverage.reportPaths=coverage.xml
+                            """
+                        }
+                    }
                 }
             }
         }
