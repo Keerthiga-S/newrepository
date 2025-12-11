@@ -2,31 +2,32 @@ pipeline {
     agent any
 
     environment {
-        VENV_DIR = 'venv'                       // Python virtual environment folder
-        SONARQUBE = 'MySonar'                   // Jenkins SonarQube server name
-        SCANNER = 'MyScanner'                   // Jenkins SonarQube scanner tool name
+        VENV = "venv"
+        SONAR_SCANNER = tool name: 'MyScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
     }
 
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Keerthiga-S/newrepository.git'
+                checkout scm
             }
         }
 
         stage('Setup Python Environment') {
             steps {
                 script {
-                    // Create virtual environment
-                    sh "python3 -m venv ${VENV_DIR}"
-                    // Activate and upgrade pip
+                    // Create venv
+                    sh "python3 -m venv ${VENV}"
+
+                    // Activate and install pip upgrade
                     sh """
-                        source ${VENV_DIR}/bin/activate
+                        . ${VENV}/bin/activate
                         pip install --upgrade pip
                     """
+
                     // Install dependencies
                     sh """
-                        source ${VENV_DIR}/bin/activate
+                        . ${VENV}/bin/activate
                         pip install -r requirements.txt
                     """
                 }
@@ -37,8 +38,8 @@ pipeline {
             steps {
                 script {
                     sh """
-                        source ${VENV_DIR}/bin/activate
-                        pytest --junitxml=pytest-results.xml --cov=app --cov-report xml:coverage.xml
+                        . ${VENV}/bin/activate
+                        pytest --junitxml=pytest-report.xml
                     """
                 }
             }
@@ -47,11 +48,9 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    def scannerHome = tool name: "${SCANNER}", type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-
-                    withSonarQubeEnv("${SONARQUBE}") {
+                    withSonarQubeEnv('MySonar') {
                         sh """
-                            ${scannerHome}/bin/sonar-scanner \
+                            ${SONAR_SCANNER}/bin/sonar-scanner \
                             -Dsonar.projectKey=my-fastapi \
                             -Dsonar.sources=. \
                             -Dsonar.host.url=$SONAR_HOST_URL \
@@ -64,22 +63,18 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                echo "Deploying application..."
-                // Add your deployment commands here
+                sh """
+                    . ${VENV}/bin/activate
+                    echo "Deploying Application..."
+                """
             }
         }
     }
 
     post {
         always {
-            echo "Cleaning workspace..."
-            deleteDir() // Works on any agent
-        }
-        success {
-            echo "Pipeline completed successfully!"
-        }
-        failure {
-            echo "Pipeline failed. Check logs!"
+            echo "Cleanup workspace..."
+            deleteDir()
         }
     }
 }
