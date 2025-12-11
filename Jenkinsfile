@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        SCANNER_HOME = tool name: 'MyScanner'
+    }
+
     stages {
         stage('Checkout') {
             steps {
@@ -21,7 +25,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('MySonar') {
                     sh """
-                        sonar-scanner \
+                        ${SCANNER_HOME}/bin/sonar-scanner \
                         -Dsonar.projectKey=my-fastapi \
                         -Dsonar.sources=. \
                         -Dsonar.host.url=$SONAR_HOST_URL \
