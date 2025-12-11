@@ -2,91 +2,73 @@ pipeline {
     agent any
 
     environment {
-        // SonarQube server configured in Jenkins
+        VENV_DIR = "venv"
+        PYTHONPATH = "${env.WORKSPACE}"   // Add project root to PYTHONPATH
         SONAR_HOST_URL = "http://host.docker.internal:9000"
-        SONAR_AUTH_TOKEN = credentials('sonar-token')  // Your Jenkins credential ID
-        VENV_DIR = "venv"  // virtual environment directory
-        IMAGE_NAME = "my-fastapi-app"
-        DOCKER_TAG = "latest"
+        SONAR_AUTH_TOKEN = credentials('sqa_f51df2dd77d533dd8679938696aed6a46d3c5a60')
     }
 
     stages {
-
-        stage('Checkout SCM') {
+        stage('Setup') {
             steps {
-                checkout scm
-            }
-        }
+                powershell """
+                    # Create virtual environment if not exists
+                    if (!(Test-Path $env:VENV_DIR)) { python -m venv $env:VENV_DIR }
 
-        stage('Build') {
-            steps {
-                sh '''
-                    # Create virtual environment
-                    python3 -m venv $VENV_DIR
-                    source $VENV_DIR/bin/activate
+                    # Activate virtual environment
+                    .\\$env:VENV_DIR\\Scripts\\Activate.ps1
 
                     # Upgrade pip
-                    pip install --upgrade pip
+                    python -m pip install --upgrade pip
 
                     # Install dependencies
                     pip install -r requirements.txt
-                '''
+                """
             }
         }
 
         stage('Test') {
             steps {
-                sh '''
-                    source $VENV_DIR/bin/activate
-                    # Run tests and generate coverage
-                    pytest --cov=. --cov-report=xml
-                '''
+                powershell """
+                    # Activate virtual environment
+                    .\\$env:VENV_DIR\\Scripts\\Activate.ps1
+
+                    # Set PYTHONPATH
+                    $env:PYTHONPATH = "$env:WORKSPACE"
+
+                    # Run pytest with coverage
+                    pytest --cov=app --cov-report=xml --junitxml=pytest-results.xml
+                """
             }
             post {
                 always {
-                    junit '**/test-reports/*.xml'  // if you generate junit xml
+                    junit 'pytest-results.xml'
+                    publishCoverage adapters: [coberturaAdapter('coverage.xml')]
                 }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('MySonar') {  // Jenkins SonarQube installation name
-                    sh '''
-                        source $VENV_DIR/bin/activate
-                        /var/jenkins_home/tools/hudson.plugins.sonar.SonarRunnerInstallation/MyScanner/bin/sonar-scanner \
-                            -Dsonar.projectKey=my-fastapi \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=$SONAR_HOST_URL \
-                            -Dsonar.login=$SONAR_AUTH_TOKEN \
-                            -Dsonar.python.coverage.reportPaths=coverage.xml
-                    '''
-                }
+                powershell """
+                    # Activate virtual environment
+                    .\\$env:VENV_DIR\\Scripts\\Activate.ps1
+
+                    # Run SonarQube Scanner
+                    sonar-scanner -Dsonar.projectKey=my-fastapi \
+                                  -Dsonar.sources=. \
+                                  -Dsonar.host.url=$env:SONAR_HOST_URL \
+                                  -Dsonar.login=$env:SONAR_AUTH_TOKEN \
+                                  -Dsonar.python.coverage.reportPaths=coverage.xml
+                """
             }
         }
 
-        stage('Docker Build & Deploy') {
+        stage('Deploy') {
             steps {
-                sh '''
-                    # Build Docker image
-                    docker build -t $IMAGE_NAME:$DOCKER_TAG .
-
-                    # Push to local Docker registry (optional)
-                    # docker tag $IMAGE_NAME:$DOCKER_TAG your-registry/$IMAGE_NAME:$DOCKER_TAG
-                    # docker push your-registry/$IMAGE_NAME:$DOCKER_TAG
-
-                    # Run container (for demo)
-                    docker stop $IMAGE_NAME || true
-                    docker rm $IMAGE_NAME || true
-                    docker run -d --name $IMAGE_NAME -p 8000:8000 $IMAGE_NAME:$DOCKER_TAG
-                '''
+                echo "Deploy stage here (optional)"
+                // Add your deployment commands, e.g., Docker build/run or copy files
             }
-        }
-    }
-
-    post {
-        always {
-            echo "Pipeline finished."
         }
     }
 }
