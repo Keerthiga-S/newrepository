@@ -8,10 +8,9 @@ pipeline {
     }
 
     options {
-        // Automatically clean workspace after build
-        cleanWs()
         // Keep only last 10 builds
         buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
     }
 
     stages {
@@ -24,11 +23,14 @@ pipeline {
         stage('Setup Python') {
             steps {
                 script {
-                    // Create virtual environment
                     if (!fileExists(env.VENV_DIR)) {
-                        sh "python -m venv ${env.VENV_DIR}"
+                        if (isUnix()) {
+                            sh "python3 -m venv ${env.VENV_DIR}"
+                        } else {
+                            bat "python -m venv ${env.VENV_DIR}"
+                        }
                     }
-                    // Activate virtual environment and install dependencies
+                    
                     if (isUnix()) {
                         sh """
                             source ${env.VENV_DIR}/bin/activate
@@ -97,17 +99,14 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo "Deployment steps go here..."
-                // Example: sh 'docker build -t myapp . && docker run -d -p 8000:8000 myapp'
             }
         }
     }
 
     post {
         always {
-            node {
-                echo "Cleaning up workspace..."
-                cleanWs()
-            }
+            echo "Cleaning workspace..."
+            deleteDir()
         }
         success {
             echo "Build, test, SonarQube analysis completed successfully!"
