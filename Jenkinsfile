@@ -21,7 +21,6 @@ pipeline {
         stage('Setup Python') {
             steps {
                 script {
-                    // Activate virtual environment and install dependencies
                     if (isUnix()) {
                         sh '''
                             python3 -m venv venv
@@ -47,11 +46,13 @@ pipeline {
                     if (isUnix()) {
                         sh '''
                             . venv/bin/activate
+                            export PYTHONPATH=$PYTHONPATH:$PWD
                             pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || true
                         '''
                     } else {
                         bat '''
                             call venv\\Scripts\\activate
+                            set PYTHONPATH=%CD%
                             pytest --cov=app --cov-report xml:coverage.xml --junitxml=pytest-results.xml || exit /b 0
                         '''
                     }
