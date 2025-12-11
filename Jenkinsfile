@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     environment {
-        SONAR_AUTH_TOKEN = credentials('sonar-token') // Jenkins secret-text id
         SONAR_SERVER_NAME = 'MySonar'
         SONAR_SCANNER_TOOL = 'MyScanner'
 
@@ -63,27 +62,29 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    withSonarQubeEnv("${SONAR_SERVER_NAME}") {
-                        if (isUnix()) {
-                            sh """
-                                ${tool SONAR_SCANNER_TOOL}/bin/sonar-scanner \
-                                    -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                                    -Dsonar.projectName=${SONAR_PROJECT_NAME} \
-                                    -Dsonar.sources=app \
-                                    -Dsonar.host.url=${SONAR_HOST_URL} \
-                                    -Dsonar.login=${SONAR_AUTH_TOKEN} \
-                                    -Dsonar.python.coverage.reportPaths=coverage.xml
-                            """
-                        } else {
-                            bat """
-                                "%SONAR_SCANNER_HOME%\\bin\\sonar-scanner.bat" ^ 
-                                    -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^ 
-                                    -Dsonar.projectName=%SONAR_PROJECT_NAME% ^ 
-                                    -Dsonar.sources=app ^ 
-                                    -Dsonar.host.url=%SONAR_HOST_URL% ^ 
-                                    -Dsonar.login=%SONAR_AUTH_TOKEN% ^ 
-                                    -Dsonar.python.coverage.reportPaths=coverage.xml
-                            """
+                    withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
+                        withSonarQubeEnv("${SONAR_SERVER_NAME}") {
+                            if (isUnix()) {
+                                sh """
+                                    ${tool SONAR_SCANNER_TOOL}/bin/sonar-scanner \
+                                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                        -Dsonar.projectName=${SONAR_PROJECT_NAME} \
+                                        -Dsonar.sources=app \
+                                        -Dsonar.host.url=${SONAR_HOST_URL} \
+                                        -Dsonar.login=${SONAR_AUTH_TOKEN} \
+                                        -Dsonar.python.coverage.reportPaths=coverage.xml
+                                """
+                            } else {
+                                bat """
+                                    "%SONAR_SCANNER_HOME%\\bin\\sonar-scanner.bat" ^
+                                        -Dsonar.projectKey=%SONAR_PROJECT_KEY% ^
+                                        -Dsonar.projectName=%SONAR_PROJECT_NAME% ^
+                                        -Dsonar.sources=app ^
+                                        -Dsonar.host.url=%SONAR_HOST_URL% ^
+                                        -Dsonar.login=%SONAR_AUTH_TOKEN% ^
+                                        -Dsonar.python.coverage.reportPaths=coverage.xml
+                                """
+                            }
                         }
                     }
                 }
