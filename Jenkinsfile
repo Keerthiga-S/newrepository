@@ -29,7 +29,7 @@ pipeline {
                             bat "python -m venv ${env.VENV_DIR}"
                         }
                     }
-                    
+
                     if (isUnix()) {
                         sh """
                             source ${env.VENV_DIR}/bin/activate
@@ -68,7 +68,6 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    // Get Jenkins-installed SonarQube Scanner
                     def scannerHome = tool name: 'MyScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
 
                     withSonarQubeEnv('MySonar') {
@@ -105,8 +104,10 @@ pipeline {
 
     post {
         always {
-            echo "Cleaning workspace..."
-            deleteDir()
+            node {
+                echo "Cleaning workspace..."
+                deleteDir()
+            }
         }
         success {
             echo "Build, test, and SonarQube analysis completed successfully!"
