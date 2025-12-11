@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        SONAR_SERVER_NAME = 'MySonar'         // SonarQube server name in Jenkins
-        SONAR_SCANNER_TOOL = 'MyScanner'      // SonarQube scanner tool name in Jenkins
+        SONAR_SERVER_NAME = 'MySonar'
+        SONAR_SCANNER_TOOL = 'MyScanner'
 
         SONAR_PROJECT_KEY = 'my-fastapi-project'
         SONAR_PROJECT_NAME = 'my-fastapi-project'
@@ -62,7 +62,7 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    // Inject token securely using withCredentials
+                    // Inject token securely
                     withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_AUTH_TOKEN')]) {
                         withSonarQubeEnv("${SONAR_SERVER_NAME}") {
                             if (isUnix()) {
