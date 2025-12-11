@@ -24,8 +24,8 @@ pipeline {
                         sonar-scanner \
                         -Dsonar.projectKey=my-fastapi \
                         -Dsonar.sources=. \
-                        -Dsonar.host.url=http://Keerthiga:9000 \
-                        -Dsonar.login=$SONARQUBE_AUTH_TOKEN
+                        -Dsonar.host.url=$SONAR_HOST_URL \
+                        -Dsonar.login=$SONAR_AUTH_TOKEN
                     """
                 }
             }
