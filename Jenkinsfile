@@ -18,15 +18,15 @@ pipeline {
             steps {
                 script {
                     // Create virtual environment
-                    bat "python -m venv ${VENV_DIR}"
+                    sh "python3 -m venv ${VENV_DIR}"
                     // Activate and upgrade pip
-                    bat """
-                        ${VENV_DIR}\\Scripts\\activate.bat
-                        python -m pip install --upgrade pip
+                    sh """
+                        source ${VENV_DIR}/bin/activate
+                        pip install --upgrade pip
                     """
                     // Install dependencies
-                    bat """
-                        ${VENV_DIR}\\Scripts\\activate.bat
+                    sh """
+                        source ${VENV_DIR}/bin/activate
                         pip install -r requirements.txt
                     """
                 }
@@ -36,9 +36,8 @@ pipeline {
         stage('Run Tests') {
             steps {
                 script {
-                    // Run pytest and generate reports
-                    bat """
-                        ${VENV_DIR}\\Scripts\\activate.bat
+                    sh """
+                        source ${VENV_DIR}/bin/activate
                         pytest --junitxml=pytest-results.xml --cov=app --cov-report xml:coverage.xml
                     """
                 }
@@ -51,12 +50,12 @@ pipeline {
                     def scannerHome = tool name: "${SCANNER}", type: 'hudson.plugins.sonar.SonarRunnerInstallation'
 
                     withSonarQubeEnv("${SONARQUBE}") {
-                        bat """
-                            ${scannerHome}\\bin\\sonar-scanner.bat ^
-                            -Dsonar.projectKey=my-fastapi ^
-                            -Dsonar.sources=. ^
-                            -Dsonar.host.url=%SONAR_HOST_URL% ^
-                            -Dsonar.login=%SONAR_AUTH_TOKEN%
+                        sh """
+                            ${scannerHome}/bin/sonar-scanner \
+                            -Dsonar.projectKey=my-fastapi \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=$SONAR_HOST_URL \
+                            -Dsonar.login=$SONAR_AUTH_TOKEN
                         """
                     }
                 }
@@ -74,7 +73,7 @@ pipeline {
     post {
         always {
             echo "Cleaning workspace..."
-            deleteDir() // No node {} needed here
+            deleteDir() // Works on any agent
         }
         success {
             echo "Pipeline completed successfully!"
