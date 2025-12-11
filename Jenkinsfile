@@ -2,73 +2,83 @@ pipeline {
     agent any
 
     environment {
-        VENV_DIR = "venv"
-        PYTHONPATH = "${env.WORKSPACE}"   // Add project root to PYTHONPATH
-        SONAR_HOST_URL = "http://host.docker.internal:9000"
-        SONAR_AUTH_TOKEN = credentials('sqa_f51df2dd77d533dd8679938696aed6a46d3c5a60')
+        VENV_DIR = 'venv'
+        PYTHON = "${VENV_DIR}\\Scripts\\python.exe"
+        PIP = "${VENV_DIR}\\Scripts\\pip.exe"
+        SONAR_TOKEN = credentials('MySonarToken') // Replace with your Jenkins secret
+        SONAR_HOST_URL = 'http://host.docker.internal:9000'
+        PYTHONPATH = "${env.WORKSPACE}"
     }
 
     stages {
-        stage('Setup') {
+        stage('Checkout SCM') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Keerthiga-S/newrepository.git'
+            }
+        }
+
+        stage('Build & Install Dependencies') {
             steps {
                 powershell """
-                    # Create virtual environment if not exists
-                    if (!(Test-Path $env:VENV_DIR)) { python -m venv $env:VENV_DIR }
+                # Create virtual environment if not exists
+                if (-not (Test-Path -Path '${VENV_DIR}')) {
+                    python -m venv ${VENV_DIR}
+                }
 
-                    # Activate virtual environment
-                    .\\$env:VENV_DIR\\Scripts\\Activate.ps1
+                # Activate virtual environment
+                & ${VENV_DIR}\\Scripts\\Activate.ps1
 
-                    # Upgrade pip
-                    python -m pip install --upgrade pip
+                # Upgrade pip
+                & ${PIP} install --upgrade pip
 
-                    # Install dependencies
-                    pip install -r requirements.txt
+                # Install dependencies
+                & ${PIP} install -r requirements.txt
                 """
             }
         }
 
-        stage('Test') {
+        stage('Run Tests') {
             steps {
                 powershell """
-                    # Activate virtual environment
-                    .\\$env:VENV_DIR\\Scripts\\Activate.ps1
+                # Activate virtual environment
+                & ${VENV_DIR}\\Scripts\\Activate.ps1
 
-                    # Set PYTHONPATH
-                    $env:PYTHONPATH = "$env:WORKSPACE"
+                # Set PYTHONPATH
+                \$env:PYTHONPATH='${PYTHONPATH}'
 
-                    # Run pytest with coverage
-                    pytest --cov=app --cov-report=xml --junitxml=pytest-results.xml
+                # Run pytest with coverage
+                & ${PYTHON} -m pytest --cov=app --cov-report=xml --junitxml=pytest-results.xml
                 """
-            }
-            post {
-                always {
-                    junit 'pytest-results.xml'
-                    publishCoverage adapters: [coberturaAdapter('coverage.xml')]
-                }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 powershell """
-                    # Activate virtual environment
-                    .\\$env:VENV_DIR\\Scripts\\Activate.ps1
+                # Activate virtual environment
+                & ${VENV_DIR}\\Scripts\\Activate.ps1
 
-                    # Run SonarQube Scanner
-                    sonar-scanner -Dsonar.projectKey=my-fastapi \
-                                  -Dsonar.sources=. \
-                                  -Dsonar.host.url=$env:SONAR_HOST_URL \
-                                  -Dsonar.login=$env:SONAR_AUTH_TOKEN \
-                                  -Dsonar.python.coverage.reportPaths=coverage.xml
+                # Run SonarScanner
+                sonar-scanner -Dsonar.projectKey=my-fastapi `
+                              -Dsonar.sources=. `
+                              -Dsonar.host.url=${SONAR_HOST_URL} `
+                              -Dsonar.login=${SONAR_TOKEN} `
+                              -Dsonar.python.coverage.reportPaths=coverage.xml
                 """
             }
         }
 
         stage('Deploy') {
             steps {
-                echo "Deploy stage here (optional)"
-                // Add your deployment commands, e.g., Docker build/run or copy files
+                echo "Add deployment commands here"
             }
+        }
+    }
+
+    post {
+        always {
+            echo "Cleaning up workspace"
+            cleanWs()
         }
     }
 }
