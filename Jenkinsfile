@@ -8,7 +8,6 @@ pipeline {
     }
 
     options {
-        // Keep only last 10 builds
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
     }
@@ -68,27 +67,28 @@ pipeline {
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('MySonar') {
-                    script {
+                script {
+                    // Get Jenkins-installed SonarQube Scanner
+                    def scannerHome = tool name: 'MyScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+
+                    withSonarQubeEnv('MySonar') {
                         if (isUnix()) {
                             sh """
-                                source ${env.VENV_DIR}/bin/activate
-                                sonar-scanner \
-                                    -Dsonar.projectKey=my-fastapi \
-                                    -Dsonar.sources=. \
-                                    -Dsonar.host.url=${env.SONAR_HOST_URL} \
-                                    -Dsonar.login=${env.SONAR_AUTH_TOKEN} \
-                                    -Dsonar.python.coverage.reportPaths=coverage.xml
+                                ${scannerHome}/bin/sonar-scanner \
+                                -Dsonar.projectKey=my-fastapi \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=${SONAR_HOST_URL} \
+                                -Dsonar.login=${SONAR_AUTH_TOKEN} \
+                                -Dsonar.python.coverage.reportPaths=coverage.xml
                             """
                         } else {
                             bat """
-                                ${env.VENV_DIR}\\Scripts\\activate.bat
-                                sonar-scanner ^
-                                    -Dsonar.projectKey=my-fastapi ^
-                                    -Dsonar.sources=. ^
-                                    -Dsonar.host.url=${env.SONAR_HOST_URL} ^
-                                    -Dsonar.login=${env.SONAR_AUTH_TOKEN} ^
-                                    -Dsonar.python.coverage.reportPaths=coverage.xml
+                                ${scannerHome}\\bin\\sonar-scanner ^
+                                -Dsonar.projectKey=my-fastapi ^
+                                -Dsonar.sources=. ^
+                                -Dsonar.host.url=${SONAR_HOST_URL} ^
+                                -Dsonar.login=${SONAR_AUTH_TOKEN} ^
+                                -Dsonar.python.coverage.reportPaths=coverage.xml
                             """
                         }
                     }
@@ -109,7 +109,7 @@ pipeline {
             deleteDir()
         }
         success {
-            echo "Build, test, SonarQube analysis completed successfully!"
+            echo "Build, test, and SonarQube analysis completed successfully!"
         }
         failure {
             echo "Build or test failed. Check logs!"
